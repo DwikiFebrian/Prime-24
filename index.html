@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>PRIME 24 — Roguelike Deck Builder</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700;900&family=Cinzel:wght@400;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:        #d4a853;
+  --gold2:       #f0c96e;
+  --red:         #c0392b;
+  --green:       #27ae60;
+  --felt:        #0d2818;
+  --card-bg:     #1a1008;
+  --card-border: #5c3d1a;
+  --chip:        #e8c84a;
+  --mult:        #e85a4a;
+  --dark:        #07090a;
+  --text:        #e8dcc8;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;padding:0;background:var(--dark);color:var(--text);font-family:'Cinzel',serif;min-height:100vh;overflow-x:hidden}
+
+body::before{content:'';position:fixed;inset:0;
+  background:
+    radial-gradient(ellipse 130% 80% at 50% 20%,#0b1f10 0%,#050a06 65%),
+    repeating-linear-gradient(45deg,transparent,transparent 10px,rgba(255,255,255,.006) 10px,rgba(255,255,255,.006) 11px),
+    repeating-linear-gradient(-45deg,transparent,transparent 10px,rgba(255,255,255,.004) 10px,rgba(255,255,255,.004) 11px);
+  pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse 100% 100% at 50% 50%,transparent 35%,rgba(0,0,0,.75) 100%);
+  pointer-events:none;z-index:0}
+.content{position:relative;z-index:1}
+
+.gold-label{font-family:'Share Tech Mono',monospace;font-size:.62rem;letter-spacing:.22em;color:#6a5030;text-transform:uppercase}
+.gold-text{color:var(--gold2);text-shadow:0 0 18px rgba(212,168,83,.45),0 0 36px rgba(212,168,83,.18)}
+
+.header-bar{background:linear-gradient(180deg,#1c110a 0%,#100d06 100%);border-bottom:2px solid #3d2a0a;box-shadow:0 4px 32px rgba(0,0,0,.85),inset 0 1px 0 rgba(212,168,83,.12)}
+
+.level-track{background:#080604;border:1px solid #241808;border-radius:4px;height:8px;overflow:hidden}
+.level-fill{height:100%;background:linear-gradient(90deg,#7a5510,var(--gold2));box-shadow:0 0 10px rgba(212,168,83,.5);transition:width .9s cubic-bezier(.4,0,.2,1);border-radius:4px}
+
+.chip-badge{background:linear-gradient(135deg,#160e00,#221800);border:1px solid #4a3008;border-radius:6px;padding:.2rem .7rem;display:inline-flex;flex-direction:column;align-items:center;min-width:88px}
+
+.target-ring{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:64px;height:64px;border-radius:50%;
+  border:3px solid var(--gold);
+  background:radial-gradient(circle,#2a1a06 0%,#0f0c06 100%);
+  box-shadow:0 0 20px rgba(212,168,83,.3),inset 0 0 10px rgba(0,0,0,.5);
+  font-family:'Cinzel Decorative',serif;font-size:1.3rem;font-weight:900;
+  color:var(--gold2);text-shadow:0 0 16px rgba(212,168,83,.6);
+  transition:all .5s cubic-bezier(.4,0,.2,1);
+  position:relative;
+}
+.target-ring.changing{animation:targetPop .5s cubic-bezier(.2,1.4,.4,1)}
+@keyframes targetPop{
+  0%{transform:scale(.8);opacity:.4}
+  60%{transform:scale(1.15)}
+  100%{transform:scale(1);opacity:1}
+}
+
+.prime-card{
+  width:76px;height:108px;
+  background:linear-gradient(145deg,#281706 0%,#160e03 60%,#0e0802 100%);
+  border:2px solid var(--card-border);border-radius:10px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;position:relative;
+  transition:transform .15s,box-shadow .15s,border-color .15s;
+  box-shadow:2px 4px 14px rgba(0,0,0,.7),inset 0 1px 0 rgba(255,255,255,.04);
+  user-select:none;overflow:hidden;
+}
+.prime-card::before{content:'';position:absolute;inset:3px;border:1px solid rgba(212,168,83,.08);border-radius:7px;pointer-events:none}
+.prime-card::after{content:'♦ ♦ ♦';position:absolute;bottom:4px;font-size:.32rem;letter-spacing:3px;color:rgba(212,168,83,.18)}
+.prime-card .card-num{font-family:'Cinzel Decorative',serif;font-size:1.75rem;font-weight:900;color:var(--gold2);line-height:1;text-shadow:0 0 18px rgba(212,168,83,.55)}
+.prime-card .card-chips{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:var(--chip);margin-top:.12rem;letter-spacing:.04em}
+.prime-card .card-suit{font-family:'Share Tech Mono',monospace;font-size:.48rem;color:rgba(212,168,83,.35);letter-spacing:.14em;margin-top:2px}
+.prime-card:hover:not(.used){transform:translateY(-10px) rotate(-1.5deg);border-color:var(--gold);box-shadow:2px 14px 24px rgba(0,0,0,.85),0 0 18px rgba(212,168,83,.22)}
+.prime-card.used{opacity:.28;cursor:not-allowed;filter:grayscale(.8)}
+
+.op-btn{
+  width:52px;height:52px;
+  background:linear-gradient(145deg,#180c0c,#100707);
+  border:2px solid #401515;border-radius:8px;
+  color:#e85a4a;font-family:'Cinzel Decorative',serif;font-size:1.25rem;font-weight:700;
+  cursor:pointer;transition:all .15s;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:2px 4px 10px rgba(0,0,0,.55);
+}
+.op-btn:hover{border-color:#e85a4a;box-shadow:0 0 14px rgba(232,90,74,.28);transform:scale(1.1)}
+
+.eq-display{
+  background:linear-gradient(180deg,#070a05 0%,#050804 100%);
+  border:2px solid #253520;border-radius:10px;
+  min-height:62px;padding:.7rem 1.2rem;
+  font-family:'Share Tech Mono',monospace;font-size:1.35rem;color:var(--gold2);
+  letter-spacing:.1em;display:flex;align-items:center;flex-wrap:wrap;gap:.3rem;
+  position:relative;box-shadow:inset 0 2px 14px rgba(0,0,0,.8);
+}
+.eq-display::before{
+  content:'EQUATION';position:absolute;top:-10px;left:14px;
+  font-family:'Share Tech Mono',monospace;font-size:.58rem;letter-spacing:.2em;
+  color:#304528;background:#070a05;padding:0 6px;
+}
+.eq-token{display:inline-flex;align-items:center;justify-content:center;padding:.12rem .45rem;border-radius:4px;transition:all .2s}
+.eq-token.num{color:var(--gold2)}
+.eq-token.op{color:#e85a4a;font-size:1.05rem}
+.eq-cursor{width:2px;height:1.3rem;background:var(--gold2);animation:blink .8s step-end infinite;border-radius:1px}
+@keyframes blink{50%{opacity:0}}
+.eq-result{font-size:.88rem;color:#3d6035;margin-left:auto;padding-left:1rem;white-space:nowrap}
+.eq-result.exact{color:#27ae60;text-shadow:0 0 10px rgba(39,174,96,.45)}
+.eq-result.close{color:#d4a853}
+
+.btn-submit{
+  background:linear-gradient(145deg,#163e0c,#0d2808);border:2px solid #267014;border-radius:8px;
+  color:#70d050;font-family:'Cinzel',serif;font-weight:700;font-size:.88rem;letter-spacing:.1em;
+  padding:.65rem 1.5rem;cursor:pointer;transition:all .15s;
+  box-shadow:0 4px 14px rgba(0,0,0,.55),inset 0 1px 0 rgba(255,255,255,.04);text-transform:uppercase;
+}
+.btn-submit:hover:not(:disabled){border-color:#50a828;box-shadow:0 0 18px rgba(80,168,40,.28),0 4px 14px rgba(0,0,0,.55);transform:translateY(-1px)}
+.btn-submit:disabled{opacity:.3;cursor:not-allowed}
+.btn-clear{
+  background:linear-gradient(145deg,#180909,#0e0505);border:2px solid #401515;border-radius:8px;
+  color:#e85a4a;font-family:'Cinzel',serif;font-weight:700;font-size:.88rem;letter-spacing:.1em;
+  padding:.65rem 1.3rem;cursor:pointer;transition:all .15s;text-transform:uppercase;
+}
+.btn-clear:hover{border-color:#e85a4a;transform:translateY(-1px)}
+
+.score-panel{
+  background:linear-gradient(180deg,#0b0e07 0%,#070a05 100%);
+  border:1px solid #253520;border-radius:10px;padding:1rem;position:relative;
+}
+.score-panel::before{
+  content:'✦';position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  color:var(--gold);font-size:.85rem;background:#0b0e07;padding:0 8px;
+}
+
+.chips-display{font-family:'Share Tech Mono',monospace;font-size:1.05rem;color:var(--chip)}
+.mult-display{font-family:'Share Tech Mono',monospace;font-size:1.05rem;color:var(--mult)}
+.x-sign{font-family:'Cinzel Decorative',serif;font-size:.95rem;color:#4a5040}
+.final-score-display{
+  font-family:'Cinzel Decorative',serif;font-size:1.9rem;font-weight:900;
+  color:var(--gold2);text-shadow:0 0 28px rgba(212,168,83,.45);line-height:1;
+}
+
+/* ── PASSIVE JOKER INVENTORY ── */
+.joker-inventory{
+  background:linear-gradient(180deg,#0c0a10 0%,#070509 100%);
+  border:1px solid #2a1a3a;border-radius:10px;padding:.75rem 1rem;position:relative;
+}
+.joker-inventory::before{
+  content:'✦';position:absolute;top:-10px;left:50%;transform:translateX(-50%);
+  color:#7a40a8;font-size:.85rem;background:#0c0a10;padding:0 8px;
+}
+.joker-pip{
+  display:inline-flex;align-items:center;gap:.45rem;
+  background:linear-gradient(135deg,#180c28,#0e0818);
+  border:1px solid #3d1a5a;border-radius:7px;
+  padding:.35rem .7rem;
+  transition:box-shadow .3s;
+}
+.joker-pip:hover{box-shadow:0 0 12px rgba(155,48,224,.2)}
+.joker-pip .pip-icon{font-size:1rem}
+.joker-pip .pip-name{font-family:'Cinzel',serif;font-size:.7rem;font-weight:700;letter-spacing:.06em}
+.joker-pip .pip-desc{font-family:'Share Tech Mono',monospace;font-size:.58rem;color:#604080;line-height:1.4}
+
+/* ── REWARD OVERLAY ── */
+.overlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.92);backdrop-filter:blur(6px)}
+.modal-box{
+  background:linear-gradient(145deg,#1a1008,#0e0b05);border:3px solid var(--gold);border-radius:16px;
+  padding:2.2rem 2.8rem;text-align:center;
+  box-shadow:0 0 60px rgba(212,168,83,.28),0 20px 60px rgba(0,0,0,.92);
+  max-width:520px;width:90%;position:relative;
+}
+.modal-box::before{content:'✦ ✦ ✦';display:block;color:var(--gold);letter-spacing:.4em;margin-bottom:.9rem;font-size:.78rem}
+
+/* Reward modal override */
+.reward-modal{
+  background:linear-gradient(145deg,#130a1e,#0a0514);
+  border-color:#7a30c0;
+  box-shadow:0 0 70px rgba(122,48,192,.35),0 20px 60px rgba(0,0,0,.92);
+  max-width:660px;
+}
+.reward-modal::before{content:'✦ ✦ ✦';color:#9b30e0}
+
+/* Reward joker choice cards */
+.reward-joker-card{
+  border-radius:12px;padding:1rem;cursor:pointer;
+  transition:all .2s;position:relative;overflow:hidden;
+  border:2px solid transparent;text-align:left;
+  flex:1;min-width:160px;
+}
+.reward-joker-card:hover{transform:translateY(-6px) scale(1.03)}
+.reward-joker-card .rj-icon{font-size:2rem;margin-bottom:.4rem;display:block}
+.reward-joker-card .rj-name{font-family:'Cinzel',serif;font-size:.88rem;font-weight:700;letter-spacing:.07em;margin-bottom:.35rem}
+.reward-joker-card .rj-desc{font-family:'Share Tech Mono',monospace;font-size:.66rem;line-height:1.55;color:#604080}
+.reward-joker-card .rj-desc span{color:var(--gold)}
+
+.rjc-diviner{background:linear-gradient(145deg,#1e0c34,#120620);border-color:#5a1a9a}
+.rjc-diviner:hover{border-color:#c060ff;box-shadow:0 0 22px rgba(155,48,224,.4)}
+.rjc-diviner .rj-name{color:#c060ff}
+
+.rjc-twin{background:linear-gradient(145deg,#0a1a30,#060e1e);border-color:#1a4a8a}
+.rjc-twin:hover{border-color:#60c0ff;box-shadow:0 0 22px rgba(48,160,224,.35)}
+.rjc-twin .rj-name{color:#60c0ff}
+
+.rjc-pacifist{background:linear-gradient(145deg,#0a2814,#06180a);border-color:#1a7a30}
+.rjc-pacifist:hover{border-color:#60ff90;box-shadow:0 0 22px rgba(48,224,96,.32)}
+.rjc-pacifist .rj-name{color:#60ff90}
+
+.rjc-titan{background:linear-gradient(145deg,#281008,#180a04);border-color:#7a3a1a}
+.rjc-titan:hover{border-color:#ffa060;box-shadow:0 0 22px rgba(224,112,48,.35)}
+.rjc-titan .rj-name{color:#ffa060}
+
+.rjc-mirror{background:linear-gradient(145deg,#201828,#140e18);border-color:#5a1a6a}
+.rjc-mirror:hover{border-color:#ff80ff;box-shadow:0 0 22px rgba(208,48,208,.32)}
+.rjc-mirror .rj-name{color:#ff80ff}
+
+/* Pip colors in inventory */
+.pip-diviner .pip-name{color:#c060ff}
+.pip-twin .pip-name{color:#60c0ff}
+.pip-pacifist .pip-name{color:#60ff90}
+.pip-titan .pip-name{color:#ffa060}
+.pip-mirror .pip-name{color:#ff80ff}
+
+.float-text{
+  position:fixed;pointer-events:none;z-index:9999;
+  font-family:'Cinzel Decorative',serif;font-weight:900;font-size:1.1rem;
+  text-shadow:0 2px 8px rgba(0,0,0,.85);animation:floatUp 1.9s ease-out forwards;white-space:nowrap;
+}
+@keyframes floatUp{
+  0%{opacity:1;transform:translateY(0) scale(1)}
+  18%{opacity:1;transform:translateY(-18px) scale(1.18)}
+  100%{opacity:0;transform:translateY(-95px) scale(.75)}
+}
+.float-chips{color:var(--chip)}
+.float-mult{color:#ff7a6a}
+.float-bonus{color:#7de87a}
+.float-score{color:var(--gold2);font-size:1.5rem}
+
+.hand-pip{width:11px;height:15px;background:#141408;border:1px solid var(--gold);border-radius:3px;transition:all .3s}
+.hand-pip.used{background:var(--gold);opacity:.35}
+
+.log-feed{max-height:110px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#201808 transparent}
+.log-entry{font-family:'Share Tech Mono',monospace;font-size:.68rem;padding:.13rem 0;border-bottom:1px solid rgba(255,255,255,.035);color:#4a5a40}
+.log-entry.win{color:#70d050}
+.log-entry.loss{color:#e85a4a}
+.log-entry.info{color:#c49030}
+
+@keyframes dealIn{from{opacity:0;transform:translateY(-55px) rotate(var(--rot,0deg)) scale(.68)}to{opacity:1;transform:translateY(0) rotate(0deg) scale(1)}}
+.deal-anim{animation:dealIn .38s cubic-bezier(.2,1.2,.4,1) both}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.shake{animation:shake .22s ease}
+
+hr.gold-sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#352208,transparent);margin:.65rem 0}
+hr.purple-sep{border:none;height:1px;background:linear-gradient(90deg,transparent,#3a1260,transparent);margin:.65rem 0}
+
+/* Reward glow anim */
+@keyframes rewardGlow{
+  0%,100%{box-shadow:0 0 70px rgba(122,48,192,.35),0 20px 60px rgba(0,0,0,.92)}
+  50%{box-shadow:0 0 100px rgba(155,48,224,.55),0 20px 60px rgba(0,0,0,.92)}
+}
+.reward-modal{animation:rewardGlow 2.4s ease-in-out infinite}
+
+/* Joker acquired flash */
+@keyframes jokerAcquired{
+  0%{opacity:0;transform:scale(.6)}
+  60%{opacity:1;transform:scale(1.08)}
+  100%{opacity:1;transform:scale(1)}
+}
+.joker-pip{animation:jokerAcquired .45s cubic-bezier(.2,1.2,.4,1) both}
+
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#201808;border-radius:2px}
+</style>
+</head>
+<body>
+<div class="content flex flex-col min-h-screen select-none">
+
+<!-- ══════════ HEADER ══════════ -->
+<header class="header-bar px-5 py-2.5">
+  <div class="max-w-6xl mx-auto flex items-center gap-3 flex-wrap">
+
+    <div class="flex flex-col mr-3">
+      <div style="font-family:'Cinzel Decorative',serif;font-size:1.25rem;font-weight:900;color:var(--gold2);text-shadow:0 0 18px rgba(212,168,83,.4);letter-spacing:.1em;">PRIME 24</div>
+      <div class="gold-label">GAMBLERION</div>
+    </div>
+
+    <div class="flex flex-col items-center">
+      <div class="gold-label">LEVEL</div>
+      <div id="levelDisplay" style="font-family:'Cinzel Decorative',serif;font-size:1.35rem;font-weight:900;color:var(--gold2);">1</div>
+    </div>
+
+    <div class="flex flex-col items-center mx-2">
+      <div class="gold-label">TARGET</div>
+      <div class="target-ring" id="targetRing">24</div>
+    </div>
+
+    <div class="flex-1 min-w-28">
+      <div class="flex justify-between mb-1">
+        <div class="gold-label">SCORE NEEDED</div>
+        <div id="levelTargetDisplay" class="gold-label" style="color:var(--gold);">500</div>
+      </div>
+      <div class="level-track"><div class="level-fill" id="levelBar" style="width:0%"></div></div>
+    </div>
+
+    <div class="chip-badge ml-auto">
+      <div class="gold-label">TOTAL SCORE</div>
+      <div id="totalScoreDisplay" style="font-family:'Cinzel Decorative',serif;font-size:1.25rem;font-weight:900;color:var(--gold2);">0</div>
+    </div>
+
+    <div class="flex flex-col items-center">
+      <div class="gold-label">HANDS</div>
+      <div class="flex gap-1 mt-1" id="handPips"></div>
+    </div>
+  </div>
+</header>
+
+<!-- ══════════ MAIN ══════════ -->
+<main class="flex-1 max-w-6xl w-full mx-auto px-4 py-5 flex flex-col gap-4">
+
+  <!-- Row 1: Equation + Score -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="md:col-span-2 flex flex-col gap-3">
+
+      <div class="eq-display" id="eqDisplay">
+        <span class="eq-cursor" id="eqCursor"></span>
+        <span class="eq-result" id="eqResult"></span>
+      </div>
+
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="gold-label mr-1">OPS</div>
+        <button class="op-btn" onclick="addOp('+')">+</button>
+        <button class="op-btn" onclick="addOp('-')">−</button>
+        <button class="op-btn" onclick="addOp('*')">×</button>
+        <button class="op-btn" onclick="addOp('/')">÷</button>
+        <div class="ml-auto flex gap-2">
+          <button class="btn-clear" onclick="clearEquation()">↺ CLEAR</button>
+          <button class="btn-submit" id="submitBtn" onclick="submitHand()" disabled>SUBMIT HAND</button>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <div class="gold-label">AIM FOR</div>
+        <div id="targetInline" style="font-family:'Share Tech Mono',monospace;font-size:1.35rem;color:var(--gold2);">= 24</div>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:.68rem;color:#2e4228;margin-left:.5rem;">keys 1–5 for cards · +-*/ for ops · Enter to submit</div>
+      </div>
+    </div>
+
+    <!-- Score panel -->
+    <div class="score-panel flex flex-col gap-2">
+      <div class="gold-label text-center mb-1">HAND SCORE</div>
+      <div class="flex items-center justify-center gap-2">
+        <div class="flex flex-col items-center">
+          <div class="gold-label">CHIPS</div>
+          <div class="chips-display" id="scoreChips">0</div>
+        </div>
+        <div class="x-sign pb-2">×</div>
+        <div class="flex flex-col items-center">
+          <div class="gold-label">MULT</div>
+          <div class="mult-display" id="scoreMult">1</div>
+        </div>
+      </div>
+      <hr class="gold-sep"/>
+      <div class="flex flex-col items-center">
+        <div class="gold-label">HAND TOTAL</div>
+        <div class="final-score-display" id="handTotal">0</div>
+      </div>
+      <hr class="gold-sep"/>
+      <div class="log-feed" id="scoreLog"><div class="log-entry">Awaiting hand...</div></div>
+    </div>
+  </div>
+
+  <!-- Row 2: Cards -->
+  <div class="flex flex-col gap-1.5">
+    <div class="gold-label">YOUR HAND — CLICK CARDS TO BUILD EQUATION</div>
+    <div class="flex gap-3 flex-wrap justify-center md:justify-start" id="handArea"></div>
+  </div>
+
+  <!-- Row 3: Joker Inventory (passive display) -->
+  <div class="joker-inventory">
+    <div class="gold-label text-center mb-2" style="color:#6a3090;">JOKER INVENTORY — PASSIVE BUFFS</div>
+    <div class="flex flex-wrap gap-2 min-h-10" id="jokerInventoryArea">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:.68rem;color:#2a1840;padding:.3rem .5rem;" id="emptyJokerMsg">No jokers yet — complete a level to earn one.</div>
+    </div>
+  </div>
+
+  <!-- Row 4: Game log -->
+  <div class="score-panel">
+    <div class="gold-label mb-2">GAME LOG</div>
+    <div class="log-feed" id="gameLog">
+      <div class="log-entry info">Deal the cards. Make your play. Hit the target.</div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ══════════ REWARD OVERLAY ══════════ -->
+<div class="overlay" id="rewardOverlay" style="display:none">
+  <div class="modal-box reward-modal">
+    <div style="font-family:'Cinzel Decorative',serif;font-size:1.7rem;font-weight:900;color:#c060ff;text-shadow:0 0 30px rgba(155,48,224,.6);">LEVEL CLEAR!</div>
+    <div class="gold-label mt-1" id="rewardLevelTxt" style="color:#7a40a8;letter-spacing:.25em;"></div>
+    <hr class="purple-sep" style="margin:.9rem 0"/>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.82rem;color:#70d050;margin-bottom:.2rem;" id="rewardScoreTxt"></div>
+    <div style="font-family:'Cinzel',serif;font-size:1.1rem;font-weight:700;color:var(--gold2);margin:.8rem 0 .3rem;" >✦ CHOOSE YOUR REWARD ✦</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.7rem;color:#5a3080;margin-bottom:1.1rem;">Select one joker — it becomes a permanent passive buff</div>
+    <div class="flex gap-3 flex-wrap justify-center" id="rewardJokerChoices"></div>
+  </div>
+</div>
+
+<!-- ══════════ WIN OVERLAY ══════════ -->
+<div class="overlay" id="winOverlay" style="display:none">
+  <div class="modal-box">
+    <div style="font-family:'Cinzel Decorative',serif;font-size:1.9rem;font-weight:900;color:var(--gold2);text-shadow:0 0 28px rgba(212,168,83,.55);">VICTORY!</div>
+    <div class="gold-label mt-1">ALL LEVELS CONQUERED</div>
+    <hr class="gold-sep" style="margin:.9rem 0"/>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.88rem;color:#70d050;" id="winScoreTxt"></div>
+    <button onclick="resetGame()" class="btn-submit mt-4" style="font-size:.95rem;padding:.8rem 1.8rem;">PLAY AGAIN ✦</button>
+  </div>
+</div>
+
+<!-- ══════════ LOSE OVERLAY ══════════ -->
+<div class="overlay" id="loseOverlay" style="display:none">
+  <div class="modal-box">
+    <div style="font-family:'Cinzel Decorative',serif;font-size:1.9rem;font-weight:900;color:#e85a4a;text-shadow:0 0 28px rgba(232,90,74,.45);">GAME OVER</div>
+    <div class="gold-label mt-1">THE HOUSE WINS</div>
+    <hr class="gold-sep" style="margin:.9rem 0"/>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:.88rem;color:#e85a4a;" id="loseScoreTxt"></div>
+    <button onclick="resetGame()" class="btn-clear mt-4" style="font-size:.95rem;padding:.8rem 1.8rem;">PLAY AGAIN ↺</button>
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════ */
+const DECK = [2, 3, 5, 7, 11, 13, 17, 19, 23];
+const HANDS_PER_LEVEL = 4;
+
+const LEVELS = [
+  { level:1, target:500,   num:24,  hint:'Classic opener' },
+  { level:2, target:2000,  num:36,  hint:'Squares rewarded' },
+  { level:3, target:7000,  num:35,  hint:'5×7 — multiply or die' },
+  { level:4, target:12000, num:48,  hint:'Double 24' },
+  { level:5, target:20000, num:77,  hint:'7×11 — prime pressure' },
+  { level:6, target:30000, num:30,  hint:'Deceptively tricky' },
+  { level:7, target:45000, num:66,  hint:'Joker synergy time' },
+  { level:8, target:65000, num:120, hint:'All five or bust' },
+];
+
+// All joker definitions
+const JOKER_DEFS = {
+  diviner: {
+    id:'diviner', icon:'🔮', name:'THE DIVINER',
+    desc:'Divide by prime <span>3</span> → final Mult <span>×10</span>',
+    colorClass:'rjc-diviner', pipClass:'pip-diviner',
+  },
+  twin: {
+    id:'twin', icon:'♊', name:'TWIN PARADOX',
+    desc:'Use 2 primes differing by <span>2</span> → Mult <span>×5</span>',
+    colorClass:'rjc-twin', pipClass:'pip-twin',
+  },
+  pacifist: {
+    id:'pacifist', icon:'☮', name:'THE PACIFIST',
+    desc:'Only <span>+</span> operators used → Mult <span>×15</span>',
+    colorClass:'rjc-pacifist', pipClass:'pip-pacifist',
+  },
+  titan: {
+    id:'titan', icon:'⚡', name:'THE TITAN',
+    desc:'Use prime <span>≥17</span> → <span>+500</span> bonus chips',
+    colorClass:'rjc-titan', pipClass:'pip-titan',
+  },
+  mirror: {
+    id:'mirror', icon:'🪞', name:'THE MIRROR',
+    desc:'Use duplicate primes → Mult <span>×4</span>',
+    colorClass:'rjc-mirror', pipClass:'pip-mirror',
+  },
+};
+const ALL_JOKER_IDS = Object.keys(JOKER_DEFS);
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+let state = {};
+
+function initState() {
+  state = {
+    levelIdx:    0,
+    totalScore:  0,
+    handsLeft:   HANDS_PER_LEVEL,
+    hand:        [],
+    equation:    [],
+    jokers:      {}, // id -> true if owned (always active when owned)
+  };
+}
+
+/* ═══════════════════════════════════════
+   BOOT / RESET
+═══════════════════════════════════════ */
+function resetGame() {
+  ['rewardOverlay','winOverlay','loseOverlay'].forEach(id => {
+    document.getElementById(id).style.display = 'none';
+  });
+  initState();
+  renderInventory();
+  renderAll();
+  dealHand();
+}
+
+/* ═══════════════════════════════════════
+   DEAL
+═══════════════════════════════════════ */
+function dealHand() {
+  state.hand = Array.from({length:5}, (_,i) => ({
+    val: DECK[Math.floor(Math.random() * DECK.length)],
+    id: i,
+    used: false,
+  }));
+  state.equation = [];
+  renderHand();
+  renderEquation();
+  resetScorePanel();
+  updateSubmitBtn();
+  gameLog('New hand dealt.', 'info');
+}
+
+/* ═══════════════════════════════════════
+   EQUATION BUILDING
+═══════════════════════════════════════ */
+function cardClicked(id) {
+  const card = state.hand.find(c => c.id === id);
+  if (!card || card.used) return;
+  const last = state.equation[state.equation.length - 1];
+  if (state.equation.length === 0 || (last && last.type === 'op')) {
+    card.used = true;
+    state.equation.push({ type:'num', val:card.val, cardId:card.id });
+    renderEquation(); renderHand(); updateSubmitBtn(); updateLiveMath();
+  } else {
+    shakeEq();
+  }
+}
+
+function addOp(op) {
+  const last = state.equation[state.equation.length - 1];
+  if (!last || last.type !== 'num') { shakeEq(); return; }
+  state.equation.push({ type:'op', val:op });
+  renderEquation(); updateSubmitBtn(); updateLiveMath();
+}
+
+function clearEquation() {
+  state.hand.forEach(c => c.used = false);
+  state.equation = [];
+  renderHand(); renderEquation(); resetScorePanel(); updateSubmitBtn(); updateLiveMath();
+}
+
+function updateSubmitBtn() {
+  const last = state.equation[state.equation.length - 1];
+  document.getElementById('submitBtn').disabled =
+    !(last && last.type === 'num' && state.equation.some(t => t.type === 'num'));
+}
+
+function shakeEq() {
+  const eq = document.getElementById('eqDisplay');
+  eq.classList.add('shake');
+  setTimeout(() => eq.classList.remove('shake'), 280);
+}
+
+/* ═══════════════════════════════════════
+   MATH EVAL
+═══════════════════════════════════════ */
+function buildExprString(tokens) {
+  return tokens.map(t => t.type === 'op' ? t.val : String(t.val)).join(' ');
+}
+
+function safeEval(expr) {
+  if (!/^[\d\s\+\-\*\/\.]+$/.test(expr)) return null;
+  const parts = expr.split(/\s+/);
+  for (let i = 0; i < parts.length - 1; i++) {
+    if (parts[i] === '/' && parseFloat(parts[i+1]) === 0) return null;
+  }
+  try {
+    const r = Function('"use strict";return(' + expr + ')')();
+    return (typeof r === 'number' && isFinite(r)) ? r : null;
+  } catch { return null; }
+}
+
+function currentTarget() { return LEVELS[state.levelIdx].num; }
+
+function updateLiveMath() {
+  const result = safeEval(buildExprString(state.equation));
+  const el = document.getElementById('eqResult');
+  if (result === null) { el.textContent = ''; el.className = 'eq-result'; return; }
+  const diff = Math.abs(result - currentTarget());
+  const disp = Number.isInteger(result) ? result : result.toFixed(3);
+  if (diff < 0.0001) {
+    el.textContent = `= ${disp}  ✓`; el.className = 'eq-result exact';
+  } else if (diff <= 5) {
+    el.textContent = `= ${disp}  ≈`; el.className = 'eq-result close';
+  } else {
+    el.textContent = `= ${disp}`; el.className = 'eq-result';
+  }
+}
+
+/* ═══════════════════════════════════════
+   SCORING (uses state.jokers object — id present = active)
+═══════════════════════════════════════ */
+function calcScore() {
+  const tokens   = state.equation;
+  const result   = safeEval(buildExprString(tokens));
+  const target   = currentTarget();
+  const diff     = result !== null ? Math.abs(result - target) : Infinity;
+  const nums     = tokens.filter(t => t.type === 'num');
+  const opTokens = tokens.filter(t => t.type === 'op');
+  const allFive  = nums.length === 5;
+  const log      = [];
+
+  // ── CHIPS ──
+  let chips = 0;
+  nums.forEach(t => {
+    const c = t.val * 10;
+    chips += c;
+    log.push({ text:`+${c} chips (prime ${t.val})`, type:'chip' });
+  });
+
+  if (diff < 0.0001) {
+    chips += 500; log.push({ text:'+500 EXACT HIT!', type:'bonus' });
+  } else if (diff <= 2) {
+    chips += 200; log.push({ text:'+200 near miss (≤2)', type:'bonus' });
+  } else if (diff <= 5) {
+    chips += 50;  log.push({ text:'+50 close call (≤5)', type:'bonus' });
+  }
+
+  if (state.jokers.titan && nums.some(t => t.val >= 17)) {
+    chips += 500;
+    log.push({ text:'+500 ⚡ TITAN — prime ≥17 used!', type:'bonus' });
+  }
+
+  // ── MULT ──
+  let mult = 1;
+
+  const powerOps = opTokens.filter(t => t.val === '*' || t.val === '/');
+  if (powerOps.length > 0) {
+    const gain = powerOps.length * 3;
+    mult += gain;
+    log.push({ text:`+${gain} mult (${powerOps.length} × ÷)`, type:'mult' });
+  }
+
+  if (allFive) {
+    const prev = mult; mult *= 5;
+    log.push({ text:`×5 ALL FIVE (${prev}→${mult})`, type:'mult' });
+  }
+
+  if (state.jokers.diviner && checkDivByN(tokens, 3)) {
+    const prev = mult; mult *= 10;
+    log.push({ text:`×10 🔮 DIVINER (${prev}→${mult})`, type:'mult' });
+  }
+
+  if (state.jokers.twin) {
+    const vals = nums.map(t => t.val);
+    let hasTwin = false;
+    for (let i = 0; i < vals.length && !hasTwin; i++)
+      for (let j = i+1; j < vals.length && !hasTwin; j++)
+        if (Math.abs(vals[i] - vals[j]) === 2) hasTwin = true;
+    if (hasTwin) {
+      const prev = mult; mult *= 5;
+      log.push({ text:`×5 ♊ TWIN PARADOX (${prev}→${mult})`, type:'mult' });
+    }
+  }
+
+  if (state.jokers.pacifist && opTokens.length > 0 && opTokens.every(t => t.val === '+')) {
+    const prev = mult; mult *= 15;
+    log.push({ text:`×15 ☮ PACIFIST — only + (${prev}→${mult})`, type:'mult' });
+  }
+
+  if (state.jokers.mirror) {
+    const vals = nums.map(t => t.val);
+    if (new Set(vals).size !== vals.length) {
+      const prev = mult; mult *= 4;
+      log.push({ text:`×4 🪞 MIRROR — duplicate prime (${prev}→${mult})`, type:'mult' });
+    }
+  }
+
+  const total = chips * mult;
+  log.push({ text:`TOTAL: ${chips} × ${mult} = ${total}`, type:'total' });
+
+  return { chips, mult, total, result, log, diff, allFive };
+}
+
+function checkDivByN(tokens, n) {
+  for (let i = 0; i < tokens.length - 1; i++) {
+    if (tokens[i].type === 'op' && tokens[i].val === '/' &&
+        tokens[i+1] && tokens[i+1].type === 'num' && tokens[i+1].val === n)
+      return true;
+  }
+  return false;
+}
+
+/* ═══════════════════════════════════════
+   SUBMIT HAND
+═══════════════════════════════════════ */
+async function submitHand() {
+  const last = state.equation[state.equation.length - 1];
+  if (!last || last.type !== 'num') return;
+  document.getElementById('submitBtn').disabled = true;
+
+  const score = calcScore();
+  await animateScoring(score);
+
+  state.totalScore += score.total;
+  state.handsLeft--;
+
+  const lv = LEVELS[state.levelIdx];
+  gameLog(
+    `Eq: ${buildExprString(state.equation)} = ${score.result !== null ? +score.result.toFixed(3) : '?'} | +${score.total.toLocaleString()} pts`,
+    score.diff < 0.0001 ? 'win' : 'info'
+  );
+  renderHeader();
+
+  if (state.totalScore >= lv.target) {
+    setTimeout(() => showRewardScreen(), 650); return;
+  }
+  if (state.handsLeft <= 0) {
+    setTimeout(() => showGameOver(), 650); return;
+  }
+  setTimeout(() => dealHand(), 420);
+}
+
+/* ═══════════════════════════════════════
+   SCORE ANIMATION
+═══════════════════════════════════════ */
+async function animateScoring(score) {
+  const chipsEl = document.getElementById('scoreChips');
+  const multEl  = document.getElementById('scoreMult');
+  const totalEl = document.getElementById('handTotal');
+
+  const btn  = document.getElementById('submitBtn');
+  const rect = btn.getBoundingClientRect();
+  const sx   = rect.left + rect.width / 2;
+  const sy   = rect.top;
+
+  let runChips = 0;
+  let runMult  = 1;
+
+  for (const entry of score.log) {
+    await delay(175);
+    if (entry.type === 'chip') {
+      const m = entry.text.match(/\+(\d+)/);
+      if (m) { runChips += +m[1]; chipsEl.textContent = runChips; spawnFloat(sx, sy, entry.text, 'float-chips'); }
+    } else if (entry.type === 'bonus') {
+      const m = entry.text.match(/\+(\d+)/);
+      if (m) { runChips += +m[1]; chipsEl.textContent = runChips; spawnFloat(sx, sy - 35, entry.text, 'float-bonus'); }
+    } else if (entry.type === 'mult') {
+      const arrow = entry.text.match(/→(\d+)\)/);
+      const flat  = entry.text.match(/\+(\d+) mult/);
+      if (arrow)     { runMult = +arrow[1]; }
+      else if (flat) { runMult += +flat[1]; }
+      multEl.textContent = runMult;
+      spawnFloat(sx, sy - 75, entry.text, 'float-mult');
+    }
+  }
+
+  await delay(280);
+  totalEl.textContent = score.total.toLocaleString();
+  spawnFloat(sx, sy - 25, `${runChips} × ${runMult} = ${score.total.toLocaleString()}`, 'float-score');
+  updateScoreLog(score.log);
+}
+
+function spawnFloat(x, y, text, cls) {
+  const el = document.createElement('div');
+  el.className = `float-text ${cls}`;
+  el.textContent = text;
+  el.style.left = Math.max(4, x - 90) + 'px';
+  el.style.top  = (y - 18) + 'px';
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2100);
+}
+
+function delay(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* ═══════════════════════════════════════
+   REWARD SCREEN  (replaces showRoundWin)
+═══════════════════════════════════════ */
+function showRewardScreen() {
+  const lv = LEVELS[state.levelIdx];
+  const isLast = state.levelIdx >= LEVELS.length - 1;
+
+  // If final level, skip reward and go straight to victory
+  if (isLast) {
+    showVictory(); return;
+  }
+
+  document.getElementById('rewardLevelTxt').textContent =
+    `LEVEL ${lv.level} — TARGET ${lv.num} COMPLETE`;
+  document.getElementById('rewardScoreTxt').textContent =
+    `Score: ${state.totalScore.toLocaleString()} / ${lv.target.toLocaleString()}`;
+
+  // Pick 3 random jokers NOT yet owned
+  const available = ALL_JOKER_IDS.filter(id => !state.jokers[id]);
+  const choices = shuffle(available).slice(0, Math.min(3, available.length));
+
+  const choicesEl = document.getElementById('rewardJokerChoices');
+  choicesEl.innerHTML = '';
+
+  if (choices.length === 0) {
+    // All jokers owned — skip straight to next level
+    proceedToNextLevel(); return;
+  }
+
+  choices.forEach(id => {
+    const def = JOKER_DEFS[id];
+    const card = document.createElement('div');
+    card.className = `reward-joker-card ${def.colorClass}`;
+    card.innerHTML = `
+      <span class="rj-icon">${def.icon}</span>
+      <div class="rj-name">${def.name}</div>
+      <div class="rj-desc">${def.desc}</div>
+    `;
+    card.addEventListener('click', () => selectJoker(id));
+    choicesEl.appendChild(card);
+  });
+
+  document.getElementById('rewardOverlay').style.display = 'flex';
+}
+
+function selectJoker(id) {
+  state.jokers[id] = true;
+  document.getElementById('rewardOverlay').style.display = 'none';
+  renderInventory();
+  const def = JOKER_DEFS[id];
+  gameLog(`🎁 Joker acquired: ${def.icon} ${def.name}`, 'win');
+  proceedToNextLevel();
+}
+
+function proceedToNextLevel() {
+  state.levelIdx++;
+  state.handsLeft = HANDS_PER_LEVEL;
+  renderAll();
+  dealHand();
+  const lv = LEVELS[state.levelIdx];
+  gameLog(`═══ LEVEL ${lv.level} — Target: ${lv.num} (${lv.hint}) — Need ${lv.target.toLocaleString()} ═══`, 'info');
+  const ring = document.getElementById('targetRing');
+  ring.classList.remove('changing');
+  void ring.offsetWidth;
+  ring.classList.add('changing');
+}
+
+function showVictory() {
+  document.getElementById('winScoreTxt').textContent =
+    `Final Score: ${state.totalScore.toLocaleString()}`;
+  document.getElementById('winOverlay').style.display = 'flex';
+}
+
+function showGameOver() {
+  const lv = LEVELS[state.levelIdx];
+  document.getElementById('loseScoreTxt').textContent =
+    `Score: ${state.totalScore.toLocaleString()} / ${lv.target.toLocaleString()} needed`;
+  document.getElementById('loseOverlay').style.display = 'flex';
+}
+
+/* ═══════════════════════════════════════
+   JOKER INVENTORY RENDER
+═══════════════════════════════════════ */
+function renderInventory() {
+  const area = document.getElementById('jokerInventoryArea');
+  const ownedIds = Object.keys(state.jokers).filter(id => state.jokers[id]);
+
+  if (ownedIds.length === 0) {
+    area.innerHTML = '<div style="font-family:\'Share Tech Mono\',monospace;font-size:.68rem;color:#2a1840;padding:.3rem .5rem;" id="emptyJokerMsg">No jokers yet — complete a level to earn one.</div>';
+    return;
+  }
+
+  area.innerHTML = '';
+  ownedIds.forEach((id, i) => {
+    const def = JOKER_DEFS[id];
+    const pip = document.createElement('div');
+    pip.className = `joker-pip ${def.pipClass}`;
+    pip.style.animationDelay = (i * 0.1) + 's';
+    pip.innerHTML = `
+      <span class="pip-icon">${def.icon}</span>
+      <div>
+        <div class="pip-name">${def.name}</div>
+        <div class="pip-desc">${def.desc}</div>
+      </div>
+    `;
+    area.appendChild(pip);
+  });
+}
+
+/* ═══════════════════════════════════════
+   UTILS
+═══════════════════════════════════════ */
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ═══════════════════════════════════════
+   RENDER
+═══════════════════════════════════════ */
+function renderAll() { renderHeader(); renderHand(); renderEquation(); resetScorePanel(); }
+
+function renderHeader() {
+  const lv = LEVELS[state.levelIdx];
+  document.getElementById('levelDisplay').textContent       = lv.level;
+  document.getElementById('levelTargetDisplay').textContent = lv.target.toLocaleString();
+  document.getElementById('totalScoreDisplay').textContent  = state.totalScore.toLocaleString();
+  document.getElementById('targetRing').textContent         = lv.num;
+  document.getElementById('targetInline').textContent       = `= ${lv.num}`;
+
+  const pct = Math.min((state.totalScore / lv.target) * 100, 100);
+  document.getElementById('levelBar').style.width = pct + '%';
+
+  const pips = document.getElementById('handPips');
+  pips.innerHTML = '';
+  for (let i = 0; i < HANDS_PER_LEVEL; i++) {
+    const p = document.createElement('div');
+    p.className = 'hand-pip' + (i >= state.handsLeft ? ' used' : '');
+    pips.appendChild(p);
+  }
+}
+
+function renderHand() {
+  const area = document.getElementById('handArea');
+  area.innerHTML = '';
+  state.hand.forEach((card, i) => {
+    const el = document.createElement('div');
+    el.className = 'prime-card deal-anim' + (card.used ? ' used' : '');
+    el.style.animationDelay = (i * 0.075) + 's';
+    el.style.setProperty('--rot', (Math.random() * 8 - 4) + 'deg');
+    el.innerHTML = `
+      <div class="card-num">${card.val}</div>
+      <div class="card-chips">+${card.val * 10} chips</div>
+      <div class="card-suit">PRIME</div>
+    `;
+    if (!card.used) el.addEventListener('click', () => cardClicked(card.id));
+    area.appendChild(el);
+  });
+}
+
+function renderEquation() {
+  const display = document.getElementById('eqDisplay');
+  const cursor  = document.getElementById('eqCursor');
+  const result  = document.getElementById('eqResult');
+  Array.from(display.children).forEach(c => { if (c !== cursor && c !== result) c.remove(); });
+  state.equation.forEach(token => {
+    const span = document.createElement('span');
+    span.className = 'eq-token ' + token.type;
+    span.textContent = token.type === 'num' ? token.val :
+      ({'+':'+', '-':'−', '*':'×', '/':'÷'}[token.val] || token.val);
+    display.insertBefore(span, cursor);
+  });
+  cursor.style.display = state.equation.length === 0 ? '' : 'none';
+  if (state.equation.length === 0) { result.textContent = ''; result.className = 'eq-result'; }
+}
+
+function resetScorePanel() {
+  document.getElementById('scoreChips').textContent = '0';
+  document.getElementById('scoreMult').textContent  = '1';
+  document.getElementById('handTotal').textContent  = '0';
+  document.getElementById('scoreLog').innerHTML = '<div class="log-entry">Awaiting hand...</div>';
+}
+
+function updateScoreLog(entries) {
+  document.getElementById('scoreLog').innerHTML = entries.map(e => {
+    const cls = e.type === 'total' ? 'win' : e.type === 'mult' ? 'info' : '';
+    return `<div class="log-entry ${cls}">${e.text}</div>`;
+  }).join('');
+}
+
+function gameLog(msg, type='') {
+  const el = document.getElementById('gameLog');
+  const div = document.createElement('div');
+  div.className = `log-entry ${type}`;
+  div.textContent = `[${new Date().toLocaleTimeString('en-US',{hour12:false})}] ${msg}`;
+  el.insertBefore(div, el.firstChild);
+  while (el.children.length > 40) el.removeChild(el.lastChild);
+}
+
+/* ═══════════════════════════════════════
+   KEYBOARD
+═══════════════════════════════════════ */
+document.addEventListener('keydown', e => {
+  if (e.target !== document.body) return;
+  if (e.key === '+') addOp('+');
+  if (e.key === '-') addOp('-');
+  if (e.key === '*') addOp('*');
+  if (e.key === '/') { e.preventDefault(); addOp('/'); }
+  if (e.key === 'Enter' && !document.getElementById('submitBtn').disabled) submitHand();
+  if (e.key === 'Escape' || e.key === 'Backspace') { e.preventDefault(); clearEquation(); }
+  if (e.key >= '1' && e.key <= '5') {
+    const card = state.hand[+e.key - 1];
+    if (card && !card.used) cardClicked(card.id);
+  }
+});
+
+/* ═══════════════════════════════════════
+   START
+═══════════════════════════════════════ */
+initState();
+renderInventory();
+renderAll();
+dealHand();
+gameLog(`═══ LEVEL 1 — Target: 24 (${LEVELS[0].hint}) — Need 500 ═══`, 'info');
+</script>
+</body>
+</html>
